@@ -19,7 +19,7 @@
 
  * You should have received a copy of the GNU General Public License
  * along with Open EVSE; see the file COPYING.  If not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Free Software Foundation, Inc., 59 Temple Place - Ste 330,
  * Boston, MA 02111-1307, USA.
  */
 #include <EEPROM.h>
@@ -53,8 +53,11 @@ prog_char VERSTR[] PROGMEM = "1.0.3";
 // Adafruit LCD backpack in I2C mode
 //#define I2CLCD
 
+// LCD2S backpack I2C display
+#define LCD2S
+
 // Advanced Powersupply... Ground check, stuck relay, L1/L2 detection.
-#define ADVPWR
+//#define ADVPWR
 
 // single button menus (needs LCD enabled)
 // connect an SPST button between BTN_PIN and GND via a 2K resistor or enable ADAFRUIT_BTN to use the 
@@ -76,7 +79,7 @@ prog_char VERSTR[] PROGMEM = "1.0.3";
 
 //-- end features
 
-#if defined(RGBLCD) || defined(I2CLCD)
+#if defined(RGBLCD) || defined(I2CLCD) || defined (LCD2S)
 #define LCD16X2
 #endif // RGBLCD || I2CLCD
 
@@ -198,6 +201,56 @@ public:
 char *g_BlankLine = "                ";
 #endif // LCD16X2
 
+class Lcd2s
+{
+  byte addr;
+  int xsize, ysize;
+  public:
+    void begin(int x, int y, byte address=0x28) {
+      xsize = x;
+      ysize = y;
+      addr = address;
+      Wire.begin();
+      Wire.beginTransmission(0x28);    //
+      Wire.write(0x80);
+      Wire.write("\f");
+      Wire.endTransmission();  
+    };
+    
+    void setCursor(int x, int y){ 
+      Wire.beginTransmission(0x28);    //
+      Wire.write(0x8a);
+      Wire.write(y+1); Wire.write(x+1);
+      Wire.endTransmission();  
+    };
+    
+    void print(const char *somedata){
+      Wire.beginTransmission(0x28);    //
+      Wire.write(0x80);
+      Wire.write(somedata);
+      //Wire.write("\n");
+      Wire.endTransmission();
+      //delay(250);  
+    };
+    
+    void print(int somedata){
+      String stringOne =  String(somedata);    
+      print((const char *)somedata);
+    };
+    void print(int y, const char *somedata){
+     setCursor(1,y+1);
+     print(somedata);
+    }
+
+    void clear() {
+      Wire.beginTransmission(addr);    //
+      Wire.write(0x80);
+      Wire.write("\f");
+      Wire.endTransmission();  
+    } ;
+    void readButtons();
+  
+};
 class OnboardDisplay 
 
 {
@@ -207,6 +260,9 @@ Adafruit_RGBLCDShield m_Lcd;
 #ifdef I2CLCD
 AdaLiquidCrystal m_Lcd; 
 #endif // I2CLCD
+#ifdef LCD2S
+Lcd2s  m_Lcd;
+#endif
   char *m_strBuf;
 
 
@@ -871,6 +927,9 @@ OnboardDisplay::OnboardDisplay()
 #ifdef I2CLCD
   : m_Lcd(LCD_I2C_ADDR)
 #endif // I2CLCD
+#ifdef LCD2S
+  : m_Lcd()
+#endif
 {
   m_strBuf = g_sTmp;
 } 
